@@ -86,7 +86,11 @@ export function JobDetailPage({ onOpenAuth }: JobDetailPageProps) {
       const res = await repackFontJob(id, params, session.access_token);
       setJob(res.job);
       setRepackNotice(
-        `Repacked "${res.job.family_name}" (threshold=${res.job.ttf_params.threshold}, sidebearing=${res.job.ttf_params.sidebearing}, mode=${res.job.ttf_params.curve_mode}).`
+        `Updated "${res.job.family_name}" — weight ${res.job.ttf_params.threshold}, spacing ${res.job.ttf_params.sidebearing}, ${
+          res.job.ttf_params.curve_mode === "polygon"
+            ? "Crisp Edges"
+            : "Smooth Curves"
+        }.`
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Repack failed.");
@@ -185,7 +189,7 @@ export function JobDetailPage({ onOpenAuth }: JobDetailPageProps) {
         <div className="mt-8 rounded-2xl border border-black/15 bg-white p-10 text-center shadow-sm">
           <Loader2 className="mx-auto h-9 w-9 animate-spin text-[#d94625]" />
           <h2 className="mt-4 font-display text-3xl text-[#0a0a0b]">
-            Synthesizing your 94-ASCII typeface...
+            Generating your English font...
           </h2>
           <p className="mt-2 font-mono text-xs text-black/60">
             {job.progress_message}
@@ -218,7 +222,7 @@ export function JobDetailPage({ onOpenAuth }: JobDetailPageProps) {
                 <div className="flex items-center gap-2">
                   <Type className="h-4 w-4 text-[#d94625]" />
                   <span className="font-mono text-xs font-semibold uppercase tracking-wider text-black/70">
-                    Live Browser @font-face Preview
+                    Live Font Tester
                   </span>
                 </div>
 
@@ -258,16 +262,16 @@ export function JobDetailPage({ onOpenAuth }: JobDetailPageProps) {
                     ? `"${loadedFamily}", sans-serif`
                     : "sans-serif",
                   fontSize: `${testSize}px`,
-                  lineHeight: 1.25,
+                  lineHeight: 1.35,
                 }}
                 className="mt-4 w-full resize-none bg-transparent text-[#0a0a0b] outline-none"
               />
             </div>
 
-            {/* Full 94-ASCII interactive map */}
+            {/* Full character map */}
             <div className="rounded-2xl border border-black/15 bg-white p-6 shadow-sm">
               <h3 className="font-mono text-xs font-semibold uppercase tracking-wider text-black/60">
-                Complete 94 Printable ASCII Character Map
+                Full English Character Map
               </h3>
               <div
                 style={{
@@ -292,7 +296,7 @@ export function JobDetailPage({ onOpenAuth }: JobDetailPageProps) {
             {job.previewUrl && (
               <div className="rounded-2xl border border-black/15 bg-white p-6 shadow-sm">
                 <h3 className="font-mono text-xs font-semibold uppercase tracking-wider text-black/60">
-                  Raw Generated Specimen Sheet
+                  Generated Specimen Sheet
                 </h3>
                 <img
                   src={job.previewUrl}

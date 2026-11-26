@@ -47,12 +47,12 @@ export function FontRepackControls({
       <div className="flex items-center gap-2">
         <SlidersHorizontal className="h-4 w-4 text-[#d94625]" />
         <h3 className="text-sm font-semibold text-[#0a0a0b]">
-          Fine-Tune &amp; Repack .TTF (Free CPU Pass)
+          Fine-Tune &amp; Re-export .TTF (Free)
         </h3>
       </div>
       <p className="mt-1 text-xs text-black/55">
-        Adjust stroke weight, letter spacing, and outline curves instantly
-        without re-running GPU diffusion.
+        Adjust stroke weight, letter spacing, and outline curves anytime for
+        free.
       </p>
 
       <div className="mt-5 space-y-4">
@@ -70,7 +70,7 @@ export function FontRepackControls({
         <label className="block text-xs">
           <div className="mb-1 flex items-center justify-between">
             <span className="font-medium text-black/75">
-              Stroke Weight (Threshold)
+              Stroke Weight
             </span>
             <span className="font-mono text-black/55">{threshold}</span>
           </div>
@@ -92,7 +92,7 @@ export function FontRepackControls({
         <label className="block text-xs">
           <div className="mb-1 flex items-center justify-between">
             <span className="font-medium text-black/75">
-              Letter Spacing (Sidebearing UPM)
+              Letter Spacing
             </span>
             <span className="font-mono text-black/55">{sidebearing}</span>
           </div>
@@ -112,23 +112,34 @@ export function FontRepackControls({
         </label>
 
         <div className="text-xs">
-          <span className="font-medium text-black/75">Vector Curve Mode</span>
+          <span className="font-medium text-black/75">Outline Style</span>
           <div className="mt-1.5 grid grid-cols-2 gap-2">
-            {(["spline", "polygon"] as const).map((mode) => (
+            {(
+              [
+                {
+                  mode: "spline",
+                  label: "Smooth Curves",
+                  sub: "Handwriting, Serif & Sans",
+                },
+                {
+                  mode: "polygon",
+                  label: "Crisp Edges",
+                  sub: "Pixel & Geometric",
+                },
+              ] as const
+            ).map((opt) => (
               <button
-                key={mode}
+                key={opt.mode}
                 type="button"
-                onClick={() => setCurveMode(mode)}
+                onClick={() => setCurveMode(opt.mode)}
                 className={`rounded-lg border px-3 py-2 text-left transition ${
-                  curveMode === mode
+                  curveMode === opt.mode
                     ? "border-[#0a0a0b] bg-[#0a0a0b] text-white"
                     : "border-black/15 bg-[#fafaf8] text-black/70 hover:border-black/30"
                 }`}
               >
-                <div className="font-semibold capitalize">{mode}</div>
-                <div className="text-[10px] opacity-70">
-                  {mode === "spline" ? "Smooth cubic curves" : "Sharp pixel corners"}
-                </div>
+                <div className="font-semibold">{opt.label}</div>
+                <div className="text-[10px] opacity-70">{opt.sub}</div>
               </button>
             ))}
           </div>
@@ -143,10 +154,10 @@ export function FontRepackControls({
           {repacking ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
-              Repacking .TTF...
+              Updating .TTF...
             </>
           ) : (
-            "Apply & Repack .TTF"
+            "Apply & Update .TTF"
           )}
         </button>
       </div>

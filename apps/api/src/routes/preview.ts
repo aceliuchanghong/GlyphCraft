@@ -69,7 +69,7 @@ previewRoute.post("/", async (c) => {
   if (!quota.allowed) {
     return c.json(
       {
-        error: `Daily free preview limit (${quota.limit}/day) reached for this IP. Unlock a full 94-ASCII font or try again tomorrow.`,
+        error: `Daily free preview limit (${quota.limit}/day) reached for this IP. Export a full English font or try again tomorrow.`,
         code: "QUOTA_EXCEEDED",
         remainingQuota: 0,
       },

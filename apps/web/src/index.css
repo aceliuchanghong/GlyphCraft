@@ -7,32 +7,26 @@
 }
 
 @font-face {
-  font-family: "GC-GrenzeGotisch";
-  src: url("/samples/grenzegotisch__light_w300_hd10.ttf") format("truetype");
+  font-family: "GC-VelvetSwash";
+  src: url("/samples/velvet-swash.ttf") format("truetype");
   font-display: swap;
 }
 
 @font-face {
-  font-family: "GC-CherrySwash";
-  src: url("/samples/cherryswash__bold_hd10.ttf") format("truetype");
+  font-family: "GC-PixelMatrix";
+  src: url("/samples/pixel-matrix.ttf") format("truetype");
   font-display: swap;
 }
 
 @font-face {
-  font-family: "GC-DotGothic";
-  src: url("/samples/dotgothic16__regular_hd10.ttf") format("truetype");
+  font-family: "GC-NordicSans";
+  src: url("/samples/nordic-sans.ttf") format("truetype");
   font-display: swap;
 }
 
 @font-face {
-  font-family: "GC-Ubuntu";
-  src: url("/samples/ubuntu__regular_hd10.ttf") format("truetype");
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "GC-Abyssinica";
-  src: url("/samples/abyssinicasil__regular_hd10.ttf") format("truetype");
+  font-family: "GC-QuillSerif";
+  src: url("/samples/quill-serif.ttf") format("truetype");
   font-display: swap;
 }
 

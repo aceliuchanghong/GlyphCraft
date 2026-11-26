@@ -1,16 +1,17 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Turnstile } from "@marsidev/react-turnstile";
 import {
+  ArrowRight,
   CheckCircle2,
   Image as ImageIcon,
+  LayoutGrid,
   Loader2,
-  Lock,
   PenTool,
   Sparkles,
-  Type,
   Wand2,
 } from "lucide-react";
 import {
+  DEFAULT_PREVIEW_TEXT,
   sanitizeFamilyName,
   validatePreviewText,
   type CurveMode,
@@ -27,13 +28,13 @@ import {
 } from "../lib/api";
 import { GlyphCanvasPad } from "./GlyphCanvasPad";
 import { ImageAlignUploader } from "./ImageAlignUploader";
-import { TtfRefUploader } from "./TtfRefUploader";
 
 interface StudioWorkbenchProps {
   onRequireAuth: () => void;
+  requestedPreset?: { slug: string; seq: number } | null;
 }
 
-type InputTab = "draw" | "upload" | "ttf";
+type InputTab = "preset" | "draw" | "upload";
 
 const TURNSTILE_SITE_KEY =
   (import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined) ||
@@ -41,6 +42,9 @@ const TURNSTILE_SITE_KEY =
 
 async function urlTo128PngDataUrl(url: string): Promise<string> {
   const resp = await fetch(url);
+  if (!resp.ok) {
+    throw new Error(`Failed to load starter style image (${resp.status}).`);
+  }
   const blob = await resp.blob();
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -50,15 +54,22 @@ async function urlTo128PngDataUrl(url: string): Promise<string> {
   });
 }
 
-export function StudioWorkbench({ onRequireAuth }: StudioWorkbenchProps) {
+export function StudioWorkbench({
+  onRequireAuth,
+  requestedPreset,
+}: StudioWorkbenchProps) {
   const { user, session } = useAuth();
   const { draft, setSlotImage, setAllSlots, updateFields } = useDraftStorage();
 
-  const [tab, setTab] = useState<InputTab>("draw");
+  const [tab, setTab] = useState<InputTab>("preset");
+  const [loadingPresetSlug, setLoadingPresetSlug] = useState<string | null>(
+    null
+  );
   const [turnstileToken, setTurnstileToken] = useState<string>("");
   const [turnstileKey, setTurnstileKey] = useState(0);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [previewStale, setPreviewStale] = useState(false);
   const [remainingQuota, setRemainingQuota] = useState<number>(
     BRAND_CONFIG.freePreviewDailyLimit
   );
@@ -72,26 +83,76 @@ export function StudioWorkbench({ onRequireAuth }: StudioWorkbenchProps) {
     draft.previewText,
     BRAND_CONFIG.maxPreviewChars
   );
+  const sanitizedName = sanitizeFamilyName(draft.familyName);
+  const showSanitizedHint =
+    draft.familyName.trim().length > 0 &&
+    draft.familyName.trim() !== sanitizedName;
 
-  const handleApplyPreset = async (preset: StudioPreset) => {
-    setPreviewError(null);
-    const loaded = await Promise.all(
-      preset.glyphs.map((path) => urlTo128PngDataUrl(path))
-    );
-    setAllSlots([loaded[0], loaded[1], loaded[2]], {
-      curveMode: preset.recommendedCurveMode,
-      familyName: preset.name.replace(/\s+/g, ""),
-    });
-  };
+  const handleSlotChange = useCallback(
+    (index: 0 | 1 | 2, dataUrl: string | null) => {
+      setPreviewError(null);
+      if (previewImage) {
+        setPreviewStale(true);
+      }
+      setSlotImage(index, dataUrl);
+    },
+    [setSlotImage, previewImage]
+  );
+
+  const handleApplyPreset = useCallback(
+    async (preset: StudioPreset) => {
+      setPreviewError(null);
+      setCheckoutError(null);
+      setLoadingPresetSlug(preset.slug);
+      try {
+        const loaded = await Promise.all(
+          preset.glyphs.map((path) => urlTo128PngDataUrl(path))
+        );
+        setAllSlots([loaded[0], loaded[1], loaded[2]], {
+          curveMode: preset.recommendedCurveMode,
+          familyName: preset.name.replace(/\s+/g, ""),
+          activePresetSlug: preset.slug,
+        });
+        if (previewImage) {
+          setPreviewStale(true);
+        }
+      } catch (err) {
+        setPreviewError(
+          err instanceof Error
+            ? err.message
+            : "Could not load starter style letters."
+        );
+      } finally {
+        setLoadingPresetSlug(null);
+      }
+    },
+    [setAllSlots, previewImage]
+  );
+
+  useEffect(() => {
+    if (!requestedPreset) return;
+    const match = STUDIO_PRESETS.find((p) => p.slug === requestedPreset.slug);
+    if (!match) return;
+    setTab("preset");
+    void handleApplyPreset(match);
+  }, [requestedPreset]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleGeneratePreview = async () => {
     setPreviewError(null);
     if (activeImages.length === 0) {
-      setPreviewError("Draw or load at least 1 reference character first.");
+      setPreviewError(
+        "Pick a style, handwrite, or upload at least 1 sample letter first."
+      );
       return;
     }
     if (!textCheck.valid) {
       setPreviewError(textCheck.error ?? "Invalid preview phrase.");
+      return;
+    }
+    if (remainingQuota <= 0) {
+      setPreviewError(
+        "Daily free preview limit reached. Try again tomorrow or export your full font."
+      );
       return;
     }
 
@@ -103,6 +164,7 @@ export function StudioWorkbench({ onRequireAuth }: StudioWorkbenchProps) {
         turnstileToken: turnstileToken || "dev-token",
       });
       setPreviewImage(resp.previewDataUrl);
+      setPreviewStale(false);
       setRemainingQuota(resp.remainingQuota);
     } catch (err) {
       if (err instanceof ApiError && err.remainingQuota !== undefined) {
@@ -121,7 +183,9 @@ export function StudioWorkbench({ onRequireAuth }: StudioWorkbenchProps) {
   const handleUnlockFullFont = async () => {
     setCheckoutError(null);
     if (activeImages.length === 0) {
-      setCheckoutError("Draw or upload at least 1 reference character first.");
+      setCheckoutError(
+        "Pick a style, handwrite, or upload at least 1 sample letter first."
+      );
       return;
     }
 
@@ -145,7 +209,7 @@ export function StudioWorkbench({ onRequireAuth }: StudioWorkbenchProps) {
       const checkout = await createCheckoutSession(
         {
           draftId,
-          familyName: sanitizeFamilyName(draft.familyName),
+          familyName: sanitizedName,
           curveMode: draft.curveMode,
         },
         session.access_token
@@ -166,105 +230,160 @@ export function StudioWorkbench({ onRequireAuth }: StudioWorkbenchProps) {
       className="border-b border-black/10 bg-[#fafaf8] py-16 sm:py-24"
     >
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="font-mono text-xs uppercase tracking-widest text-[#d94625]">
-              Interactive Studio
-            </p>
-            <h2 className="mt-2 font-display text-4xl tracking-tight text-[#0a0a0b] sm:text-5xl">
-              Test your own style in seconds.
-            </h2>
-          </div>
-          <p className="max-w-md text-sm text-black/60">
-            Draw 1–3 letters, align a photo, or upload a reference{" "}
-            <code className="font-mono">.ttf</code>. Instant preview is free (
-            {remainingQuota}/{BRAND_CONFIG.freePreviewDailyLimit} left today).
+        <div>
+          <p className="font-mono text-xs uppercase tracking-widest text-[#d94625]">
+            Interactive Studio
+          </p>
+          <h2 className="mt-2 font-display text-4xl tracking-tight text-[#0a0a0b] sm:text-5xl">
+            Test your own style in seconds.
+          </h2>
+          <p className="mt-2.5 max-w-2xl text-sm leading-relaxed text-black/60">
+            Pick a starter style, handwrite 1–3 letters, or upload a style
+            sample to generate a free preview.
           </p>
         </div>
 
         <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-12">
-          {/* LEFT WORKBENCH: Input slots + Preview Sentence + Turnstile */}
+          {/* LEFT WORKBENCH: Input source + Preview Sentence + Turnstile */}
           <div className="space-y-5 rounded-2xl border border-black/15 bg-white p-5 shadow-sm lg:col-span-7 sm:p-6">
-            {/* Mode Switcher + Presets */}
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="inline-flex rounded-xl border border-black/10 bg-[#fafaf8] p-1">
+            {/* Ordered 3-tab Switcher: 1. Choose Style -> 2. Draw Letters -> 3. Upload Image */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="inline-flex flex-wrap rounded-xl border border-black/10 bg-[#fafaf8] p-1">
+                <button
+                  type="button"
+                  onClick={() => setTab("preset")}
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition ${
+                    tab === "preset"
+                      ? "bg-[#0a0a0b] text-white"
+                      : "text-black/65 hover:text-[#0a0a0b]"
+                  }`}
+                >
+                  <LayoutGrid className="h-3.5 w-3.5" />
+                  Choose Style
+                </button>
                 <button
                   type="button"
                   onClick={() => setTab("draw")}
-                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition ${
                     tab === "draw"
                       ? "bg-[#0a0a0b] text-white"
                       : "text-black/65 hover:text-[#0a0a0b]"
                   }`}
                 >
                   <PenTool className="h-3.5 w-3.5" />
-                  Draw Pad
+                  Handwrite
                 </button>
                 <button
                   type="button"
                   onClick={() => setTab("upload")}
-                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition ${
                     tab === "upload"
                       ? "bg-[#0a0a0b] text-white"
                       : "text-black/65 hover:text-[#0a0a0b]"
                   }`}
                 >
                   <ImageIcon className="h-3.5 w-3.5" />
-                  Align Image
+                  Upload Style
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setTab("ttf")}
-                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                    tab === "ttf"
-                      ? "bg-[#0a0a0b] text-white"
-                      : "text-black/65 hover:text-[#0a0a0b]"
-                  }`}
-                >
-                  <Type className="h-3.5 w-3.5" />
-                  Ref .TTF
-                </button>
-              </div>
-
-              {/* Quick presets */}
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="font-mono text-[11px] text-black/45">
-                  Presets:
-                </span>
-                {STUDIO_PRESETS.map((preset) => (
-                  <button
-                    key={preset.slug}
-                    type="button"
-                    onClick={() => void handleApplyPreset(preset)}
-                    className="rounded-md border border-black/10 bg-[#fafaf8] px-2 py-1 text-[11px] font-medium text-black/75 transition hover:border-black/30 hover:bg-white"
-                  >
-                    {preset.name}
-                  </button>
-                ))}
               </div>
             </div>
 
             {/* Active input mode */}
+            {tab === "preset" && (
+              <div className="space-y-3">
+                <p className="text-xs text-black/60">
+                  Pick a curated style to load 3 sample letters instantly, or
+                  switch to Handwrite / Upload Style to use your own.
+                </p>
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {STUDIO_PRESETS.map((preset) => {
+                    const isSelected = draft.activePresetSlug === preset.slug;
+                    const isLoadingThis = loadingPresetSlug === preset.slug;
+                    return (
+                      <button
+                        key={preset.slug}
+                        type="button"
+                        disabled={Boolean(loadingPresetSlug)}
+                        onClick={() => void handleApplyPreset(preset)}
+                        className={`flex flex-col justify-between rounded-xl border p-3.5 text-left transition disabled:cursor-wait ${
+                          isSelected
+                            ? "border-[#0a0a0b] bg-[#fafaf8] ring-1 ring-[#0a0a0b]"
+                            : "border-black/15 bg-white hover:border-black/35 hover:bg-[#fafaf8]/60"
+                        }`}
+                      >
+                        <div className="flex w-full items-start justify-between gap-2">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-semibold text-[#0a0a0b]">
+                                {preset.name}
+                              </span>
+                              <span className="rounded-md bg-black/5 px-1.5 py-0.5 font-mono text-[10px] font-medium text-black/65">
+                                {preset.tag}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-xs text-black/55">
+                              {preset.description}
+                            </p>
+                          </div>
+
+                          {isLoadingThis ? (
+                            <Loader2 className="h-4 w-4 shrink-0 animate-spin text-[#d94625]" />
+                          ) : (
+                            isSelected && (
+                              <CheckCircle2 className="h-4 w-4 shrink-0 text-[#d94625]" />
+                            )
+                          )}
+                        </div>
+
+                        <div className="mt-3 flex items-center gap-2">
+                          {preset.glyphs.map((glyphSrc, idx) => (
+                            <div
+                              key={glyphSrc}
+                              className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-lg border border-black/10 bg-white p-1"
+                            >
+                              <img
+                                src={glyphSrc}
+                                alt={`${preset.name} sample ${idx + 1}`}
+                                className="h-full w-full object-contain"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {activeImages.length > 0 && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-black/10 bg-[#fafaf8] px-3.5 py-2.5 text-xs">
+                    <span className="text-black/65">
+                      Want to tweak these letters?
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setTab("draw")}
+                      className="inline-flex items-center gap-1 font-semibold text-[#d94625] transition hover:underline"
+                    >
+                      Edit in Handwrite
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
             {tab === "draw" && (
               <GlyphCanvasPad
                 slots={draft.slots}
-                onChangeSlot={setSlotImage}
+                onChangeSlot={handleSlotChange}
               />
             )}
 
             {tab === "upload" && (
               <ImageAlignUploader
                 slots={draft.slots}
-                onChangeSlot={setSlotImage}
-              />
-            )}
-
-            {tab === "ttf" && (
-              <TtfRefUploader
-                onExtractSlots={(slots) => {
-                  setAllSlots(slots);
-                  setTab("draw");
-                }}
+                onChangeSlot={handleSlotChange}
               />
             )}
 
@@ -275,7 +394,7 @@ export function StudioWorkbench({ onRequireAuth }: StudioWorkbenchProps) {
                   htmlFor="preview-text-input"
                   className="text-xs font-semibold text-[#0a0a0b]"
                 >
-                  Preview Phrase (max {BRAND_CONFIG.maxPreviewChars} ASCII
+                  Preview Text (max {BRAND_CONFIG.maxPreviewChars} English
                   characters)
                 </label>
                 <span
@@ -284,9 +403,6 @@ export function StudioWorkbench({ onRequireAuth }: StudioWorkbenchProps) {
                   }`}
                 >
                   {draft.previewText.length}/{BRAND_CONFIG.maxPreviewChars}
-                  {textCheck.valid
-                    ? ` · ${textCheck.uniqueCount} unique glyphs`
-                    : ""}
                 </span>
               </div>
               <input
@@ -294,8 +410,14 @@ export function StudioWorkbench({ onRequireAuth }: StudioWorkbenchProps) {
                 type="text"
                 maxLength={BRAND_CONFIG.maxPreviewChars}
                 value={draft.previewText}
-                onChange={(e) => updateFields({ previewText: e.target.value })}
-                placeholder="Hello World!"
+                onChange={(e) => {
+                  setPreviewError(null);
+                  if (previewImage) {
+                    setPreviewStale(true);
+                  }
+                  updateFields({ previewText: e.target.value });
+                }}
+                placeholder={DEFAULT_PREVIEW_TEXT}
                 className="mt-2 w-full rounded-lg border border-black/15 bg-white px-3.5 py-2.5 font-mono text-sm text-[#0a0a0b] outline-none focus:border-[#0a0a0b]"
               />
               {!textCheck.valid && (
@@ -304,7 +426,7 @@ export function StudioWorkbench({ onRequireAuth }: StudioWorkbenchProps) {
             </div>
 
             {/* Turnstile + Generate Free Preview */}
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="min-h-[65px]">
                 <Turnstile
                   key={turnstileKey}
@@ -315,25 +437,38 @@ export function StudioWorkbench({ onRequireAuth }: StudioWorkbenchProps) {
                 />
               </div>
 
-              <button
-                type="button"
-                disabled={previewLoading || activeImages.length === 0 || !textCheck.valid}
-                onClick={() => void handleGeneratePreview()}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#0a0a0b] px-5 py-3 text-sm font-semibold text-white transition hover:bg-black/85 disabled:cursor-not-allowed disabled:opacity-45"
-              >
-                {previewLoading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Synthesizing (4-step fast)...
-                  </>
-                ) : (
-                  <>
-                    <Wand2 className="h-4 w-4 text-[#d94625]" />
-                    Generate Free Preview ({remainingQuota}/
-                    {BRAND_CONFIG.freePreviewDailyLimit})
-                  </>
-                )}
-              </button>
+              <div className="flex flex-col items-start sm:items-end">
+                <button
+                  type="button"
+                  disabled={
+                    previewLoading ||
+                    activeImages.length === 0 ||
+                    !textCheck.valid ||
+                    remainingQuota <= 0
+                  }
+                  onClick={() => void handleGeneratePreview()}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#0a0a0b] px-5 py-3 text-sm font-semibold text-white transition hover:bg-black/85 disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  {previewLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Generating preview...
+                    </>
+                  ) : remainingQuota <= 0 ? (
+                    "Daily Free Limit Reached"
+                  ) : (
+                    <>
+                      <Wand2 className="h-4 w-4 text-[#d94625]" />
+                      Generate Free Preview
+                    </>
+                  )}
+                </button>
+                <span className="mt-1.5 font-mono text-[11px] text-black/45">
+                  {activeImages.length === 0
+                    ? "Pick a style or provide at least 1 letter first"
+                    : `${remainingQuota}/${BRAND_CONFIG.freePreviewDailyLimit} free previews left today`}
+                </span>
+              </div>
             </div>
 
             {previewError && (
@@ -347,36 +482,64 @@ export function StudioWorkbench({ onRequireAuth }: StudioWorkbenchProps) {
           <div className="flex flex-col gap-5 lg:col-span-5">
             {/* Live Preview Output */}
             <div className="rounded-2xl border border-black/15 bg-white p-5 shadow-sm">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <span className="font-mono text-xs font-semibold uppercase tracking-wider text-black/60">
-                  4-Step Instant Preview
+                  Instant Preview
                 </span>
-                <span className="font-mono text-[11px] text-black/45">
-                  {activeImages.length}/3 reference slot
-                  {activeImages.length === 1 ? "" : "s"} active
-                </span>
+                {previewStale && previewImage && (
+                  <span className="rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 font-mono text-[10px] font-medium text-amber-800">
+                    Outdated — click Generate to refresh
+                  </span>
+                )}
               </div>
 
-              <div className="mt-4 flex min-h-[140px] items-center justify-center overflow-hidden rounded-xl border border-dashed border-black/15 bg-[#fafaf8] p-4">
+              {/* Active reference thumbnail strip (shown only when letters are loaded) */}
+              {activeImages.length > 0 && (
+                <div className="mt-3 flex items-center gap-2">
+                  {activeImages.map((slotUrl, idx) => (
+                    <div
+                      key={idx}
+                      className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg border border-black/10 bg-white p-0.5"
+                    >
+                      <img
+                        src={slotUrl}
+                        alt={`Style reference ${idx + 1}`}
+                        className="h-full w-full object-contain"
+                      />
+                    </div>
+                  ))}
+                  <span className="ml-1 text-[11px] text-black/45">
+                    Style reference
+                  </span>
+                </div>
+              )}
+
+              <div className="relative mt-3 flex min-h-[140px] items-center justify-center overflow-hidden rounded-xl border border-dashed border-black/15 bg-[#fafaf8] p-4">
                 {previewLoading ? (
                   <div className="flex flex-col items-center gap-2 text-xs text-black/55">
                     <Loader2 className="h-6 w-6 animate-spin text-[#d94625]" />
-                    Running fast 4-step flow inference on GPU...
+                    Generating preview...
                   </div>
                 ) : previewImage ? (
                   <img
                     src={previewImage}
                     alt="Generated font preview sentence"
-                    className="max-h-36 w-auto object-contain"
+                    className={`max-h-36 w-auto object-contain transition-opacity ${
+                      previewStale ? "opacity-65" : "opacity-100"
+                    }`}
                   />
                 ) : (
                   <p className="max-w-xs text-center text-xs leading-relaxed text-black/45">
-                    Your synthesized phrase will render here on a baseline guide
-                    before you unlock the full 94-ASCII{" "}
-                    <code className="font-mono">.ttf</code>.
+                    Your generated phrase will appear here before you export the
+                    full English{" "}
+                    <code className="font-mono">.ttf</code> font.
                   </p>
                 )}
               </div>
+
+              <p className="mt-2.5 text-[11px] leading-relaxed text-black/50">
+                Note: Each generation's results will differ slightly every time.
+              </p>
             </div>
 
             {/* Conversion Card */}
@@ -384,10 +547,10 @@ export function StudioWorkbench({ onRequireAuth }: StudioWorkbenchProps) {
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <span className="inline-flex items-center gap-1 rounded-full bg-[#d94625] px-2.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-white">
-                    <Sparkles className="h-3 w-3" /> HD 10-Step Mode
+                    <Sparkles className="h-3 w-3" /> Full .TTF Export
                   </span>
                   <h3 className="mt-2.5 font-display text-3xl tracking-tight">
-                    Unlock Full 94-ASCII Font
+                    Generate Full English Font
                   </h3>
                 </div>
                 <div className="text-right">
@@ -403,7 +566,7 @@ export function StudioWorkbench({ onRequireAuth }: StudioWorkbenchProps) {
               <ul className="mt-4 space-y-2 text-xs text-white/80">
                 <li className="flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 shrink-0 text-[#d94625]" />
-                  Complete 94 printable English ASCII glyphs (A–Z, a–z, 0–9,
+                  Complete English character set (A–Z, a–z, 0–9 &amp;
                   punctuation)
                 </li>
                 <li className="flex items-center gap-2">
@@ -413,7 +576,7 @@ export function StudioWorkbench({ onRequireAuth }: StudioWorkbenchProps) {
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 shrink-0 text-[#d94625]" />
-                  Free unlimited weight, spacing &amp; spline/polygon repacking
+                  Free unlimited weight, spacing &amp; curve adjustments
                 </li>
               </ul>
 
@@ -432,23 +595,32 @@ export function StudioWorkbench({ onRequireAuth }: StudioWorkbenchProps) {
                     placeholder="MyCustomFont"
                     className="mt-1.5 w-full rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/50"
                   />
+                  {showSanitizedHint && (
+                    <span className="mt-1 block text-[11px] text-white/55">
+                      Will export as{" "}
+                      <code className="font-mono text-white/80">
+                        {sanitizedName}.ttf
+                      </code>{" "}
+                      (English letters, numbers, spaces, - and _ only)
+                    </span>
+                  )}
                 </label>
 
                 <div className="text-xs">
                   <span className="font-medium text-white/75">
-                    Vectorization Mode
+                    Outline Style
                   </span>
                   <div className="mt-1.5 grid grid-cols-2 gap-2">
                     {(
                       [
                         {
                           mode: "spline",
-                          label: "Smooth Spline",
-                          sub: "Handwriting / Serif / Sans",
+                          label: "Smooth Curves",
+                          sub: "Handwriting, Serif & Sans",
                         },
                         {
                           mode: "polygon",
-                          label: "Crisp Polygon",
+                          label: "Crisp Edges",
                           sub: "Pixel & Geometric",
                         },
                       ] as Array<{ mode: CurveMode; label: string; sub: string }>
@@ -492,15 +664,23 @@ export function StudioWorkbench({ onRequireAuth }: StudioWorkbenchProps) {
                   </>
                 ) : (
                   <>
-                    <Lock className="h-4 w-4" />
-                    Generate Full 94-ASCII Font (.ttf)
+                    Export Full Font · {BRAND_CONFIG.priceDisplay}
+                    <ArrowRight className="h-4 w-4" />
                   </>
                 )}
               </button>
+
+              {activeImages.length === 0 && (
+                <p className="mt-2 text-center text-[11px] text-white/60">
+                  Pick a style, handwrite, or upload at least 1 letter to enable
+                  export.
+                </p>
+              )}
+
               <p className="mt-2.5 text-center font-mono text-[11px] text-white/50">
                 {user
                   ? `Signed in as ${user.email} · Draft saved automatically`
-                  : "Your drawn glyphs are saved automatically before Google sign-in"}
+                  : "Your draft is saved automatically."}
               </p>
             </div>
           </div>

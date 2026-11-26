@@ -15,7 +15,7 @@ export function Footer() {
             </span>
           </div>
           <p className="mt-1.5 text-xs text-black/55">
-            {BRAND_CONFIG.tagline} English 94-ASCII TrueType foundry.
+            {BRAND_CONFIG.tagline}
           </p>
         </div>
 

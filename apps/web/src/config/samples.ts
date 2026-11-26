@@ -6,6 +6,7 @@ export interface SampleFontSpec {
   category: string;
   fontFamily: string;
   ttfUrl: string;
+  downloadFilename: string;
   curveMode: CurveMode;
   defaultText: string;
   presetSlug?: string;
@@ -13,51 +14,45 @@ export interface SampleFontSpec {
 
 export const SAMPLE_FONTS: SampleFontSpec[] = [
   {
-    id: "grenze",
-    label: "Grenze Gotisch",
-    category: "Blackletter Display",
-    fontFamily: "GC-GrenzeGotisch",
-    ttfUrl: "/samples/grenzegotisch__light_w300_hd10.ttf",
-    curveMode: "spline",
-    defaultText: "Crafted from 3 strokes.",
-    presetSlug: "grenzegotisch__light_w300",
-  },
-  {
-    id: "cherry",
-    label: "Cherry Swash",
+    id: "velvet-swash",
+    label: "Velvet Swash",
     category: "Editorial Swash Serif",
-    fontFamily: "GC-CherrySwash",
-    ttfUrl: "/samples/cherryswash__bold_hd10.ttf",
+    fontFamily: "GC-VelvetSwash",
+    ttfUrl: "/samples/velvet-swash.ttf",
+    downloadFilename: "VelvetSwash.ttf",
     curveMode: "spline",
     defaultText: "Playful curls & crisp serifs!",
-    presetSlug: "cherryswash__bold",
+    presetSlug: "velvet-swash",
   },
   {
-    id: "dotgothic",
-    label: "DotGothic 16",
-    category: "Pixel Matrix",
-    fontFamily: "GC-DotGothic",
-    ttfUrl: "/samples/dotgothic16__regular_hd10.ttf",
+    id: "pixel-matrix",
+    label: "Pixel Matrix",
+    category: "Retro Pixel Grid",
+    fontFamily: "GC-PixelMatrix",
+    ttfUrl: "/samples/pixel-matrix.ttf",
+    downloadFilename: "PixelMatrix.ttf",
     curveMode: "polygon",
     defaultText: "PIXEL GRID 0123456789",
-    presetSlug: "dotgothic16__regular",
+    presetSlug: "pixel-matrix",
   },
   {
-    id: "ubuntu",
-    label: "Ubuntu Sans",
+    id: "nordic-sans",
+    label: "Nordic Sans",
     category: "Humanist Sans",
-    fontFamily: "GC-Ubuntu",
-    ttfUrl: "/samples/ubuntu__regular_hd10.ttf",
+    fontFamily: "GC-NordicSans",
+    ttfUrl: "/samples/nordic-sans.ttf",
+    downloadFilename: "NordicSans.ttf",
     curveMode: "spline",
     defaultText: "Clean geometry, full ASCII.",
-    presetSlug: "ubuntu__regular",
+    presetSlug: "nordic-sans",
   },
   {
-    id: "abyssinica",
-    label: "Abyssinica",
+    id: "quill-serif",
+    label: "Quill Serif",
     category: "Calligraphic Serif",
-    fontFamily: "GC-Abyssinica",
-    ttfUrl: "/samples/abyssinicasil__regular_hd10.ttf",
+    fontFamily: "GC-QuillSerif",
+    ttfUrl: "/samples/quill-serif.ttf",
+    downloadFilename: "QuillSerif.ttf",
     curveMode: "spline",
     defaultText: "Sharp terminals & balance.",
   },
@@ -67,64 +62,58 @@ export interface StudioPreset {
   slug: string;
   name: string;
   tag: string;
+  description: string;
   recommendedCurveMode: CurveMode;
   glyphs: [string, string, string];
 }
 
 export const STUDIO_PRESETS: StudioPreset[] = [
   {
-    slug: "grenzegotisch__light_w300",
-    name: "Blackletter",
-    tag: "Gothic",
-    recommendedCurveMode: "spline",
-    glyphs: [
-      "/presets/grenzegotisch__light_w300/H.png",
-      "/presets/grenzegotisch__light_w300/F.png",
-      "/presets/grenzegotisch__light_w300/y.png",
-    ],
-  },
-  {
-    slug: "cherryswash__bold",
-    name: "Cherry Swash",
+    slug: "velvet-swash",
+    name: "Velvet Swash",
     tag: "Swash Serif",
+    description: "Expressive editorial serifs with playful curls",
     recommendedCurveMode: "spline",
     glyphs: [
-      "/presets/cherryswash__bold/H.png",
-      "/presets/cherryswash__bold/F.png",
-      "/presets/cherryswash__bold/y.png",
+      "/presets/velvet-swash/H.png",
+      "/presets/velvet-swash/F.png",
+      "/presets/velvet-swash/y.png",
     ],
   },
   {
-    slug: "dotgothic16__regular",
-    name: "DotGothic",
+    slug: "marker-brush",
+    name: "Marker Brush",
+    tag: "Handwritten",
+    description: "Bold hand-lettered felt-tip brush strokes",
+    recommendedCurveMode: "spline",
+    glyphs: [
+      "/presets/marker-brush/H.png",
+      "/presets/marker-brush/F.png",
+      "/presets/marker-brush/y.png",
+    ],
+  },
+  {
+    slug: "pixel-matrix",
+    name: "Pixel Matrix",
     tag: "Pixel",
+    description: "Crisp retro bitmap grid for games & UI",
     recommendedCurveMode: "polygon",
     glyphs: [
-      "/presets/dotgothic16__regular/H.png",
-      "/presets/dotgothic16__regular/F.png",
-      "/presets/dotgothic16__regular/y.png",
+      "/presets/pixel-matrix/H.png",
+      "/presets/pixel-matrix/F.png",
+      "/presets/pixel-matrix/y.png",
     ],
   },
   {
-    slug: "permanentmarker__regular",
-    name: "Marker Brush",
-    tag: "Handwriting",
+    slug: "nordic-sans",
+    name: "Nordic Sans",
+    tag: "Clean Sans",
+    description: "Balanced everyday humanist sans-serif",
     recommendedCurveMode: "spline",
     glyphs: [
-      "/presets/permanentmarker__regular/H.png",
-      "/presets/permanentmarker__regular/F.png",
-      "/presets/permanentmarker__regular/y.png",
-    ],
-  },
-  {
-    slug: "ubuntu__regular",
-    name: "Ubuntu Sans",
-    tag: "Sans",
-    recommendedCurveMode: "spline",
-    glyphs: [
-      "/presets/ubuntu__regular/H.png",
-      "/presets/ubuntu__regular/F.png",
-      "/presets/ubuntu__regular/y.png",
+      "/presets/nordic-sans/H.png",
+      "/presets/nordic-sans/F.png",
+      "/presets/nordic-sans/y.png",
     ],
   },
 ];

@@ -16,7 +16,7 @@ export interface BrandConfig {
 
 export const DEFAULT_BRAND_CONFIG: BrandConfig = {
   name: "GlyphCraft",
-  tagline: "Turn 1–3 letters into a complete 94-ASCII TrueType font.",
+  tagline: "Turn 1–3 letters into a complete English .ttf font.",
   supportEmail: "support@glyphcraft.app",
   priceCents: 900,
   currency: "USD",

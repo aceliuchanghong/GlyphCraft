@@ -5,7 +5,7 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import { RotateCcw, Trash2 } from "lucide-react";
+import { Trash2, Undo2 } from "lucide-react";
 import { DEFAULT_BRAND_CONFIG } from "@glyphcraft/shared";
 
 interface GlyphCanvasPadProps {
@@ -13,10 +13,10 @@ interface GlyphCanvasPadProps {
   onChangeSlot: (index: 0 | 1 | 2, dataUrl: string | null) => void;
 }
 
-const SLOT_HINTS: Array<{ char: string; hint: string; required?: boolean }> = [
-  { char: "H", hint: "Cap height (y=40..96)", required: true },
-  { char: "g", hint: "Descender & curve" },
-  { char: "p", hint: "Bowl & stem (optional)" },
+const SLOT_HINTS: Array<{ title: string; hint: string }> = [
+  { title: "Letter 1", hint: "e.g. H or A — cap height" },
+  { title: "Letter 2", hint: "e.g. F or g — curves & stems" },
+  { title: "Letter 3", hint: "e.g. y or p — descender tail" },
 ];
 
 const MODEL_SIZE = DEFAULT_BRAND_CONFIG.canvasSize; // 128
@@ -32,9 +32,11 @@ interface SinglePadProps {
 function SingleGlyphPad({ index, value, brushSize, onChange }: SinglePadProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const historyRef = useRef<ImageData[]>([]);
+  const [historyCount, setHistoryCount] = useState(0);
   const drawingRef = useRef(false);
   const lastPointRef = useRef<{ x: number; y: number } | null>(null);
   const lastLoadedValueRef = useRef<string | null>(null);
+  const initializedRef = useRef(false);
 
   const meta = SLOT_HINTS[index];
 
@@ -54,12 +56,23 @@ function SingleGlyphPad({ index, value, brushSize, onChange }: SinglePadProps) {
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
     if (!ctx) return;
 
+    if (!initializedRef.current && !value) {
+      initWhiteCanvas();
+      historyRef.current = [];
+      setHistoryCount(0);
+      lastLoadedValueRef.current = null;
+      initializedRef.current = true;
+      return;
+    }
+
     if (value === lastLoadedValueRef.current) return;
 
     if (!value) {
       initWhiteCanvas();
       historyRef.current = [];
+      setHistoryCount(0);
       lastLoadedValueRef.current = null;
+      initializedRef.current = true;
       return;
     }
 
@@ -69,6 +82,7 @@ function SingleGlyphPad({ index, value, brushSize, onChange }: SinglePadProps) {
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
       lastLoadedValueRef.current = value;
+      initializedRef.current = true;
     };
     img.src = value;
   }, [value, initWhiteCanvas]);
@@ -118,6 +132,7 @@ function SingleGlyphPad({ index, value, brushSize, onChange }: SinglePadProps) {
   };
 
   const handlePointerDown = (e: ReactPointerEvent<HTMLCanvasElement>) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
     e.preventDefault();
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -131,6 +146,7 @@ function SingleGlyphPad({ index, value, brushSize, onChange }: SinglePadProps) {
     if (historyRef.current.length > 25) {
       historyRef.current.shift();
     }
+    setHistoryCount(historyRef.current.length);
 
     const pt = getCoords(e);
     drawingRef.current = true;
@@ -183,6 +199,7 @@ function SingleGlyphPad({ index, value, brushSize, onChange }: SinglePadProps) {
   const handleUndo = () => {
     const canvas = canvasRef.current;
     const prev = historyRef.current.pop();
+    setHistoryCount(historyRef.current.length);
     if (!canvas || !prev) return;
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
     if (!ctx) return;
@@ -198,6 +215,10 @@ function SingleGlyphPad({ index, value, brushSize, onChange }: SinglePadProps) {
     historyRef.current.push(
       ctx.getImageData(0, 0, canvas.width, canvas.height)
     );
+    if (historyRef.current.length > 25) {
+      historyRef.current.shift();
+    }
+    setHistoryCount(historyRef.current.length);
     initWhiteCanvas();
     lastLoadedValueRef.current = null;
     onChange(null);
@@ -207,14 +228,17 @@ function SingleGlyphPad({ index, value, brushSize, onChange }: SinglePadProps) {
     <div className="flex flex-col rounded-xl border border-black/15 bg-white p-3">
       <div className="mb-2 flex items-center justify-between">
         <div>
-          <span className="font-mono text-xs font-semibold text-[#0a0a0b]">
-            Slot {index + 1}: {meta.char}
-          </span>
-          {meta.required && (
-            <span className="ml-1.5 rounded bg-[#d94625]/10 px-1.5 py-0.5 font-mono text-[10px] font-medium text-[#d94625]">
-              min 1
+          <div className="flex items-center gap-1.5">
+            {value && (
+              <span
+                className="h-2 w-2 rounded-full bg-emerald-500"
+                title="Added"
+              />
+            )}
+            <span className="font-mono text-xs font-semibold text-[#0a0a0b]">
+              {meta.title}
             </span>
-          )}
+          </div>
           <p className="text-[11px] text-black/50">{meta.hint}</p>
         </div>
 
@@ -222,16 +246,20 @@ function SingleGlyphPad({ index, value, brushSize, onChange }: SinglePadProps) {
           <button
             type="button"
             onClick={handleUndo}
-            title="Undo stroke"
-            className="rounded-md border border-black/10 p-1.5 text-black/60 transition hover:bg-black/5 hover:text-[#0a0a0b]"
+            disabled={historyCount === 0}
+            title="Undo"
+            aria-label="Undo"
+            className="rounded-md border border-black/10 p-1.5 text-black/60 transition hover:bg-black/5 hover:text-[#0a0a0b] disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-black/60"
           >
-            <RotateCcw className="h-3.5 w-3.5" />
+            <Undo2 className="h-3.5 w-3.5" />
           </button>
           <button
             type="button"
             onClick={handleClear}
-            title="Clear slot"
-            className="rounded-md border border-black/10 p-1.5 text-black/60 transition hover:bg-red-50 hover:text-red-600"
+            disabled={!value}
+            title="Clear"
+            aria-label="Clear"
+            className="rounded-md border border-black/10 p-1.5 text-black/60 transition hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-black/60"
           >
             <Trash2 className="h-3.5 w-3.5" />
           </button>
@@ -239,7 +267,7 @@ function SingleGlyphPad({ index, value, brushSize, onChange }: SinglePadProps) {
       </div>
 
       {/* Canvas + Non-exported em_baseline overlay guides */}
-      <div className="relative aspect-square w-full overflow-hidden rounded-lg border border-black/15 bg-white touch-none">
+      <div className="relative mx-auto aspect-square w-full max-w-[240px] overflow-hidden rounded-lg border border-black/15 bg-white touch-none sm:max-w-none">
         <canvas
           ref={canvasRef}
           width={MODEL_SIZE * DISPLAY_SCALE}
@@ -341,12 +369,19 @@ function SingleGlyphPad({ index, value, brushSize, onChange }: SinglePadProps) {
 
 export function GlyphCanvasPad({ slots, onChangeSlot }: GlyphCanvasPadProps) {
   const [brushSize, setBrushSize] = useState(7);
+  const hasAny = slots.some(Boolean);
+
+  const handleClearAll = () => {
+    onChangeSlot(0, null);
+    onChangeSlot(1, null);
+    onChangeSlot(2, null);
+  };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-black/10 bg-[#fafaf8] px-3.5 py-2.5 text-xs">
         <div className="flex items-center gap-3">
-          <span className="font-medium text-black/75">Brush Size</span>
+          <span className="font-medium text-black/75">Pen Size</span>
           <input
             type="range"
             min={3}
@@ -355,15 +390,34 @@ export function GlyphCanvasPad({ slots, onChangeSlot }: GlyphCanvasPadProps) {
             onChange={(e) => setBrushSize(Number(e.target.value))}
             className="h-1.5 w-28 accent-[#0a0a0b]"
           />
+          <span className="inline-flex h-4 w-4 items-center justify-center">
+            <span
+              className="rounded-full bg-[#0a0a0b]"
+              style={{ width: brushSize, height: brushSize }}
+            />
+          </span>
           <span className="font-mono text-[11px] text-black/55">
             {brushSize}px
           </span>
         </div>
 
-        <span className="font-mono text-[11px] text-black/50">
-          Align bottoms to red BASE line (y=96/128). Guides are never exported.
-        </span>
+        {hasAny && (
+          <button
+            type="button"
+            onClick={handleClearAll}
+            className="inline-flex items-center gap-1 rounded-md border border-black/10 bg-white px-2.5 py-1 text-[11px] font-medium text-black/65 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+          >
+            <Trash2 className="h-3 w-3" />
+            Clear all
+          </button>
+        )}
       </div>
+
+      <p className="text-xs text-black/55">
+        Write 1 to 3 sample letters resting on the red{" "}
+        <span className="font-mono font-medium text-[#d94625]">BASE</span> line
+        (guide lines won&apos;t be exported).
+      </p>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {([0, 1, 2] as const).map((idx) => (

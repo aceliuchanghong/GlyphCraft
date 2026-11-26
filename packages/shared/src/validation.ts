@@ -1,6 +1,9 @@
 import { DEFAULT_BRAND_CONFIG } from "./brand";
 import type { CurveMode, TtfParams } from "./types";
 
+/** Default preview phrase used when the input is left blank */
+export const DEFAULT_PREVIEW_TEXT = "Hello World!";
+
 /** Printable ASCII 0x21..0x7E plus space 0x20 */
 export const PRINTABLE_ASCII_REGEX = /^[\x20-\x7E]+$/;
 
@@ -20,15 +23,7 @@ export function validatePreviewText(
   rawText: string,
   maxChars: number = DEFAULT_BRAND_CONFIG.maxPreviewChars
 ): PreviewTextValidation {
-  const cleaned = rawText.trim();
-  if (!cleaned) {
-    return {
-      valid: false,
-      cleaned: "",
-      uniqueCount: 0,
-      error: "Please enter a preview phrase.",
-    };
-  }
+  const cleaned = rawText.trim() || DEFAULT_PREVIEW_TEXT;
   if (cleaned.length > maxChars) {
     return {
       valid: false,
@@ -75,7 +70,7 @@ export function sanitizeFamilyName(name?: string | null): string {
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 40);
-  return raw || "CustomFont";
+  return raw || "MyCustomFont";
 }
 
 export function clampTtfParams(input?: Partial<{

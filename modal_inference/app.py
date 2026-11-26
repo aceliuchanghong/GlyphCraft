@@ -2,7 +2,7 @@
 
 Exposes a FastAPI ASGI gateway (`web_api`) backed by:
   1. `FontInferenceEngine` (L4 GPU, `scaledown_window=120`):
-     - `render_preview`: synchronous 4-step fast mode preview sentence PNG
+     - `render_preview`: synchronous 10-step HD preview sentence PNG
      - `generate_full_job`: asynchronous 10-step HD 94-ASCII generation + TTF packing + R2 upload + Workers callback
   2. `repack_ttf_cpu` (CPU-only):
      - Re-vectorizes cached `glyphs.zip` into a new `.ttf` with updated `threshold`, `sidebearing`, `curve_mode`, and `family_name`
@@ -16,6 +16,7 @@ import hmac
 import io
 import os
 from pathlib import Path
+import random
 import sys
 import tempfile
 import threading
@@ -320,8 +321,8 @@ class FontInferenceEngine:
         with self.lock:
             sampling = replace(
                 self.base_sampling_cfg,
-                mode="fast",
-                num_inference_steps=4,
+                mode="hd",
+                num_inference_steps=10,
             )
             self.pipe.sampling_cfg = sampling
             results = infer_images(
@@ -623,7 +624,7 @@ def web_api():
     class PreviewPayload(BaseModel):
         images: List[str] = Field(..., min_length=1, max_length=3)
         text: str = Field(..., min_length=1, max_length=16)
-        seed: int = 123
+        seed: int = Field(default_factory=lambda: random.randint(0, 2147483647))
 
     class GenerateFullPayload(BaseModel):
         job_id: str

@@ -27,8 +27,8 @@ export function PrivacyPage() {
           2. Account &amp; Paid Font Storage
         </h2>
         <p>
-          When you sign in with Google via Supabase Auth and unlock a full
-          94-ASCII font, we store your email address, order reference, draft
+          When you sign in with Google via Supabase Auth and export a full
+          English font, we store your email address, order reference, draft
           glyphs, generated <code className="font-mono">.ttf</code>, and
           vectorizable glyph archive in Cloudflare R2 so you can re-tune and
           download your fonts anytime.

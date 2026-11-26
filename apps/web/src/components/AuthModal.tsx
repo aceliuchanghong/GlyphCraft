@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2, ShieldCheck, X } from "lucide-react";
 import { BRAND_NAME } from "../config/brand";
 import { useAuth } from "../hooks/useAuth";
@@ -12,6 +12,15 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
   const { signInWithGoogle, configured } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open, onClose]);
 
   if (!open) return null;
 
@@ -29,8 +38,14 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
-      <div className="relative w-full max-w-md rounded-2xl border border-black/15 bg-white p-6 shadow-2xl">
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-md rounded-2xl border border-black/15 bg-white p-6 shadow-2xl"
+      >
         <button
           type="button"
           onClick={onClose}
@@ -55,8 +70,8 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
         <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900">
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
           <span>
-            Your current reference glyphs are preserved locally and in cloud
-            draft storage across sign-in.
+            Your current letters and settings are saved automatically—you
+            won&apos;t lose your work after signing in.
           </span>
         </div>
 

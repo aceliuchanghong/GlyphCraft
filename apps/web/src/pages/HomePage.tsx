@@ -1,6 +1,5 @@
-import { Check, HelpCircle, Layers, Sliders, Sparkles } from "lucide-react";
-import { BRAND_CONFIG, BRAND_NAME } from "../config/brand";
-import { BeforeAfterSlider } from "../components/BeforeAfterSlider";
+import { useEffect, useRef, useState } from "react";
+import { ArrowDown } from "lucide-react";
 import { HeroPlayground } from "../components/HeroPlayground";
 import { StudioWorkbench } from "../components/StudioWorkbench";
 
@@ -8,151 +7,237 @@ interface HomePageProps {
   onOpenAuth: () => void;
 }
 
+const HERO_DEMOS = [
+  {
+    id: "quill",
+    label: "Calligraphy Quill",
+    src: "/video/feather-hero.mp4",
+    poster: "/video/feather-poster.jpg",
+    ariaLabel:
+      "Hand writes H, g, p with a feather quill and the quill automatically finishes writing the alphabet in matching calligraphy style",
+  },
+  {
+    id: "pen",
+    label: "Modern Ink Pen",
+    src: "/video/pen-hero.mp4",
+    poster: "/video/pen-poster.jpg",
+    ariaLabel:
+      "Hand writes A, b, g with a matte-black pen and the pen automatically finishes writing the alphabet in the same bold style",
+  },
+] as const;
+
 const FAQS = [
   {
-    q: "Which characters are included in the generated .ttf font?",
-    a: "Every generated font covers the complete 94 printable English ASCII character set (A–Z, a–z, 0–9, and 32 standard punctuation/symbol glyphs from 0x21 '!' to 0x7E '~', plus the space glyph). Non-English scripts (CJK, Cyrillic, Arabic, emoji) are not supported.",
+    q: "What characters are included?",
+    a: "Every generated .ttf font includes full standard English letters (A–Z, a–z), numbers (0–9), and common punctuation. Non-English scripts are not supported.",
   },
   {
-    q: "How many reference letters do I need to draw or upload?",
-    a: "You only need 1 to 3 reference glyphs. We recommend drawing H (uppercase cap height), g (lowercase curve + descender), and p (or another distinctive letter) aligned to the baseline guides.",
+    q: "How many sample letters do I need?",
+    a: "Just 1 to 3 letters. Pick a starter style, handwrite a few letters (such as H, g, and y), or upload a style sample to give the AI enough cues for the full English font.",
   },
   {
-    q: "Can I adjust weight or spacing after generating the font?",
-    a: "Yes. After your 94-ASCII font finishes generating, your result page lets you tweak stroke thickness (threshold), sidebearing spacing, font family name, and spline vs. polygon curve mode for free—repacking a fresh .ttf in seconds.",
+    q: "Can I adjust thickness or spacing afterwards?",
+    a: "Yes. After your font is generated, you can fine-tune stroke weight, letter spacing, and font name anytime for free.",
   },
   {
-    q: "Can I use the downloaded .ttf font commercially?",
-    a: "Yes. You receive full commercial rights to use, embed, and distribute the .ttf files generated from your original drawings or licensed style references.",
+    q: "Can I use the .ttf font commercially?",
+    a: "Yes. You get full commercial rights to install, embed, and use fonts generated from your own handwriting or licensed style samples.",
   },
 ];
 
 export function HomePage({ onOpenAuth }: HomePageProps) {
+  const [activeDemoIdx, setActiveDemoIdx] = useState(0);
+  const [isHeroVisible, setIsHeroVisible] = useState(true);
+  const [requestedPreset, setRequestedPreset] = useState<{
+    slug: string;
+    seq: number;
+  } | null>(null);
+  const heroMediaRef = useRef<HTMLDivElement | null>(null);
+  const videoRefs = useRef<Array<HTMLVideoElement | null>>([]);
+  const prevDemoIdxRef = useRef<number>(0);
+
+  const handleUsePresetInStudio = (slug: string) => {
+    setRequestedPreset((prev) => ({ slug, seq: (prev?.seq ?? 0) + 1 }));
+    document.getElementById("studio")?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const handleSelectDemo = (idx: number) => {
+    if (idx === activeDemoIdx) {
+      const activeVideo = videoRefs.current[idx];
+      if (activeVideo) {
+        activeVideo.currentTime = 0;
+        const p = activeVideo.play();
+        if (p) p.catch(() => {});
+      }
+      return;
+    }
+    setActiveDemoIdx(idx);
+  };
+
+  // Pause hero videos automatically when scrolled out of view to keep studio drawing & scrolling silky smooth.
+  useEffect(() => {
+    const container = heroMediaRef.current;
+    if (!container || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsHeroVisible(entry.isIntersecting);
+      },
+      { threshold: 0.15 }
+    );
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
+
+  // Keep both <video> elements mounted and preloaded: switch via smooth opacity crossfade without DOM remounting.
+  useEffect(() => {
+    const switched = prevDemoIdxRef.current !== activeDemoIdx;
+    prevDemoIdxRef.current = activeDemoIdx;
+
+    videoRefs.current.forEach((video, idx) => {
+      if (!video) return;
+      if (idx === activeDemoIdx && isHeroVisible) {
+        if (switched || video.ended) {
+          video.currentTime = 0;
+        }
+        const playPromise = video.play();
+        if (playPromise) {
+          playPromise.catch(() => {
+            // Ignore autoplay promise rejections in strict browser contexts.
+          });
+        }
+      } else {
+        video.pause();
+      }
+    });
+  }, [activeDemoIdx, isHeroVisible]);
+
   return (
     <>
-      <HeroPlayground />
-      <BeforeAfterSlider />
-      <StudioWorkbench onRequireAuth={onOpenAuth} />
+      {/* Clean, focused Hero with looping demo video */}
+      <section className="border-b border-black/10 bg-foundry-grid py-12 sm:py-16">
+        <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-10 px-4 sm:px-6 lg:grid-cols-12 lg:px-8">
+          <div className="text-center lg:col-span-6 lg:text-left">
+            <h1 className="font-display text-[2.35rem] leading-[1.06] tracking-tight text-[#0a0a0b] sm:text-5xl xl:text-[3.75rem]">
+              <span className="block">Start with 1–3 letters.</span>
+              <span className="mt-1 block italic text-[#d94625]">
+                Get a full English font.
+              </span>
+            </h1>
 
-      {/* Workflow + Pricing Section */}
-      <section id="pricing" className="border-b border-black/10 bg-white py-16 sm:py-24">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 gap-10 lg:grid-cols-12 lg:items-center">
-            <div className="lg:col-span-7">
-              <p className="font-mono text-xs uppercase tracking-widest text-[#d94625]">
-                Foundry Architecture
-              </p>
-              <h2 className="mt-2 font-display text-4xl tracking-tight text-[#0a0a0b] sm:text-5xl">
-                Built for real typography, not blurry raster grids.
-              </h2>
+            <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-black/65 lg:mx-0">
+              Pick a starter style, handwrite a few letters, or upload a style
+              sample. Preview for free, then export an installable{" "}
+              <code className="rounded bg-black/5 px-1.5 py-0.5 font-mono text-sm text-[#0a0a0b]">
+                .ttf
+              </code>{" "}
+              font.
+            </p>
 
-              <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-3">
-                <div className="rounded-2xl border border-black/10 bg-[#fafaf8] p-5">
-                  <Layers className="h-5 w-5 text-[#d94625]" />
-                  <h3 className="mt-3 text-sm font-semibold text-[#0a0a0b]">
-                    Fixed Baseline Math
-                  </h3>
-                  <p className="mt-1.5 text-xs leading-relaxed text-black/60">
-                    Every glyph is locked to the exact{" "}
-                    <code className="font-mono">y=96/128</code> baseline and
-                    mapped cleanly to <code className="font-mono">y=0</code> in
-                    1000-UPM TrueType space.
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-black/10 bg-[#fafaf8] p-5">
-                  <Sparkles className="h-5 w-5 text-[#d94625]" />
-                  <h3 className="mt-3 text-sm font-semibold text-[#0a0a0b]">
-                    4-Step Try, 10-Step HD
-                  </h3>
-                  <p className="mt-1.5 text-xs leading-relaxed text-black/60">
-                    Test your handwriting in seconds with 4-step fast preview,
-                    then generate all 94 glyphs in 10-step Dual-CFG HD quality.
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-black/10 bg-[#fafaf8] p-5">
-                  <Sliders className="h-5 w-5 text-[#d94625]" />
-                  <h3 className="mt-3 text-sm font-semibold text-[#0a0a0b]">
-                    Non-Destructive Tuning
-                  </h3>
-                  <p className="mt-1.5 text-xs leading-relaxed text-black/60">
-                    Re-vectorize your 94 glyphs anytime on CPU to refine stroke
-                    weight, sidebearings, and spline/polygon contours.
-                  </p>
-                </div>
-              </div>
+            <div className="mt-7 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
+              <a
+                href="#studio"
+                className="inline-flex items-center gap-2 rounded-xl bg-[#0a0a0b] px-6 py-3 text-sm font-semibold text-white shadow-xs transition hover:bg-black/85"
+              >
+                Start Creating
+                <ArrowDown className="h-4 w-4 text-[#d94625]" />
+              </a>
+              <a
+                href="#examples"
+                className="inline-flex items-center rounded-xl border border-black/15 bg-white px-5 py-3 text-sm font-medium text-[#0a0a0b] transition hover:border-black/30"
+              >
+                Try Sample Fonts
+              </a>
             </div>
 
-            <div className="lg:col-span-5">
-              <div className="rounded-2xl border border-black/15 bg-[#fafaf8] p-7">
-                <div className="flex items-baseline justify-between">
-                  <div>
-                    <p className="font-mono text-xs uppercase tracking-wider text-[#d94625]">
-                      Pay Per Font
-                    </p>
-                    <h3 className="mt-1 font-display text-3xl text-[#0a0a0b]">
-                      Full 94-ASCII Pack
-                    </h3>
-                  </div>
-                  <div className="text-right">
-                    <span className="font-display text-5xl text-[#0a0a0b]">
-                      {BRAND_CONFIG.priceDisplay}
-                    </span>
-                    <span className="ml-1 font-mono text-xs text-black/55">
-                      / font
-                    </span>
-                  </div>
-                </div>
+            <p className="mt-5 font-mono text-xs text-black/45">
+              Works on macOS · Windows · Figma · Photoshop · Canva
+            </p>
+          </div>
 
-                <ul className="mt-6 space-y-2.5 text-sm text-black/75">
-                  {[
-                    "No subscription required—pay only when you love your preview",
-                    "All 94 English ASCII characters + calibrated space glyph",
-                    "Installable .TTF for macOS, Windows, Figma, Photoshop & Web",
-                    "Unlimited free weight, spacing & curve repacks for each job",
-                    "Email notification when your HD font finishes building",
-                  ].map((item) => (
-                    <li key={item} className="flex items-start gap-2.5">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#d94625]" />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
+          <div className="lg:col-span-6">
+            <div
+              ref={heroMediaRef}
+              className="relative aspect-video w-full overflow-hidden rounded-2xl border border-black/10 bg-[#f5f4f0] shadow-sm"
+            >
+              {HERO_DEMOS.map((demo, idx) => {
+                const isActive = idx === activeDemoIdx;
+                return (
+                  <video
+                    key={demo.id}
+                    ref={(el) => {
+                      videoRefs.current[idx] = el;
+                    }}
+                    src={demo.src}
+                    poster={demo.poster}
+                    autoPlay={idx === 0}
+                    muted
+                    playsInline
+                    preload="auto"
+                    onEnded={() => {
+                      if (idx === activeDemoIdx) {
+                        setActiveDemoIdx((prev) => (prev + 1) % HERO_DEMOS.length);
+                      }
+                    }}
+                    aria-label={demo.ariaLabel}
+                    aria-hidden={!isActive}
+                    className={`absolute inset-0 block h-full w-full object-cover transition-opacity duration-500 will-change-[opacity] ${
+                      isActive
+                        ? "z-10 opacity-100"
+                        : "pointer-events-none z-0 opacity-0"
+                    }`}
+                  />
+                );
+              })}
+            </div>
 
-                <a
-                  href="#studio"
-                  className="mt-7 inline-flex w-full items-center justify-center rounded-xl bg-[#0a0a0b] px-5 py-3 text-sm font-semibold text-white transition hover:bg-black/85"
-                >
-                  Create Your Font in {BRAND_NAME} Studio
-                </a>
-              </div>
+            <div className="mt-3 flex items-center justify-center gap-2 lg:justify-end">
+              {HERO_DEMOS.map((demo, idx) => {
+                const isActive = idx === activeDemoIdx;
+                return (
+                  <button
+                    key={demo.id}
+                    type="button"
+                    onClick={() => handleSelectDemo(idx)}
+                    className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                      isActive
+                        ? "bg-[#0a0a0b] text-white"
+                        : "border border-black/15 bg-white text-black/60 hover:border-black/30 hover:text-[#0a0a0b]"
+                    }`}
+                  >
+                    {demo.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
       </section>
 
-      {/* FAQ Section */}
-      <section className="bg-[#fafaf8] py-16 sm:py-20">
-        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-[#d94625]">
-            <HelpCircle className="h-3.5 w-3.5" />
-            FAQ &amp; Scope
-          </div>
-          <h2 className="mt-2 font-display text-3xl text-[#0a0a0b] sm:text-4xl">
+      {/* Core Interactive Studio right up front */}
+      <StudioWorkbench
+        onRequireAuth={onOpenAuth}
+        requestedPreset={requestedPreset}
+      />
+
+      {/* Simple Sample Font Playground */}
+      <HeroPlayground onUseInStudio={handleUsePresetInStudio} />
+
+      {/* Compact FAQ */}
+      <section className="bg-[#fafaf8] py-14">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <h2 className="font-display text-3xl text-[#0a0a0b]">
             Frequently asked questions
           </h2>
-
-          <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
             {FAQS.map((faq) => (
               <div
                 key={faq.q}
-                className="rounded-2xl border border-black/10 bg-white p-5"
+                className="rounded-xl border border-black/10 bg-white p-5"
               >
                 <h3 className="text-sm font-semibold text-[#0a0a0b]">
                   {faq.q}
                 </h3>
-                <p className="mt-2 text-xs leading-relaxed text-black/65">
+                <p className="mt-1.5 text-xs leading-relaxed text-black/65">
                   {faq.a}
                 </p>
               </div>

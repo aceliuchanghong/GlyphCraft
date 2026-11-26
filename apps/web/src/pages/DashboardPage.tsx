@@ -25,10 +25,12 @@ export function DashboardPage({ onOpenAuth }: DashboardPageProps) {
 
   const [jobs, setJobs] = useState<FontJobWithUrls[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchJobs = useCallback(async () => {
+  const fetchJobs = useCallback(async (manual = false) => {
     if (!session?.access_token) return;
+    if (manual) setRefreshing(true);
     try {
       const data = await listFontJobs(session.access_token);
       setJobs(data.jobs);
@@ -37,6 +39,7 @@ export function DashboardPage({ onOpenAuth }: DashboardPageProps) {
       setError(err instanceof Error ? err.message : "Failed to load fonts.");
     } finally {
       setLoading(false);
+      if (manual) setRefreshing(false);
     }
   }, [session?.access_token]);
 
@@ -79,7 +82,7 @@ export function DashboardPage({ onOpenAuth }: DashboardPageProps) {
             Sign in to view your fonts
           </h1>
           <p className="mt-2 text-sm text-black/60">
-            Access your generated 94-ASCII{" "}
+            Access your generated English{" "}
             <code className="font-mono">.ttf</code> files, live specimen
             previews, and free parameter tuning controls.
           </p>
@@ -110,10 +113,13 @@ export function DashboardPage({ onOpenAuth }: DashboardPageProps) {
         <div className="flex items-center gap-2.5">
           <button
             type="button"
-            onClick={() => void fetchJobs()}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-black/15 bg-white px-3.5 py-2 text-xs font-semibold text-[#0a0a0b] transition hover:border-black/35"
+            disabled={refreshing}
+            onClick={() => void fetchJobs(true)}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-black/15 bg-white px-3.5 py-2 text-xs font-semibold text-[#0a0a0b] transition hover:border-black/35 disabled:opacity-60"
           >
-            <RefreshCw className="h-3.5 w-3.5" />
+            <RefreshCw
+              className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`}
+            />
             Refresh
           </button>
           <Link
@@ -131,7 +137,7 @@ export function DashboardPage({ onOpenAuth }: DashboardPageProps) {
           <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
           <div>
             <p className="font-semibold">
-              Payment received! Your 94-ASCII HD font job is being queued.
+              Payment received! Your English font is being generated.
             </p>
             <p className="mt-0.5 text-xs text-emerald-800">
               Generation usually finishes in ~30–45 seconds. We will also email
@@ -158,8 +164,8 @@ export function DashboardPage({ onOpenAuth }: DashboardPageProps) {
             No fonts generated yet
           </h2>
           <p className="mt-2 text-sm text-black/60">
-            Head to the Studio, test your 1–3 glyph style for free, and unlock
-            your first full 94-ASCII <code className="font-mono">.ttf</code>.
+            Head to the Studio, test your 1–3 letter style for free, and export
+            your first English <code className="font-mono">.ttf</code> font.
           </p>
           <Link
             to="/#studio"
@@ -183,7 +189,9 @@ export function DashboardPage({ onOpenAuth }: DashboardPageProps) {
                     </h2>
                     <p className="font-mono text-[11px] text-black/45">
                       {new Date(job.created_at).toLocaleString()} ·{" "}
-                      {job.ttf_params.curve_mode}
+                      {job.ttf_params.curve_mode === "polygon"
+                        ? "Crisp Edges"
+                        : "Smooth Curves"}
                     </p>
                   </div>
 

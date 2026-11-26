@@ -15,24 +15,22 @@ export function TermsPage() {
           through our platform, you agree to these terms.
         </p>
         <h2 className="text-base font-semibold text-[#0a0a0b]">
-          1. Supported Character Set (94 Printable English ASCII)
+          1. Supported Character Set (English)
         </h2>
         <p>
-          {BRAND_NAME} exclusively synthesizes the 94 printable English ASCII
-          characters (<code className="font-mono">0x21 '!'</code> through{" "}
-          <code className="font-mono">0x7E '~'</code>, covering A–Z, a–z, 0–9,
-          and standard punctuation) plus the space glyph. Non-English scripts
-          and extended Unicode blocks are not included.
+          {BRAND_NAME} generates standard English{" "}
+          <code className="font-mono">.ttf</code> fonts covering uppercase and
+          lowercase letters (A–Z, a–z), digits (0–9), and common punctuation.
+          Non-English scripts and extended Unicode blocks are not included.
         </p>
         <h2 className="text-base font-semibold text-[#0a0a0b]">
           2. Reference Input Responsibility &amp; Commercial Rights
         </h2>
         <p>
-          You represent that any hand-drawn strokes, images, or reference{" "}
-          <code className="font-mono">.ttf</code> files you upload do not
-          infringe third-party copyrights or trademarks. Subject to that
-          condition, you receive a perpetual, worldwide, royalty-free commercial
-          license to use, embed, and distribute the{" "}
+          You represent that any handwritten samples or style images you
+          upload do not infringe third-party copyrights or trademarks. Subject
+          to that condition, you receive a perpetual, worldwide, royalty-free
+          commercial license to use, embed, and distribute the{" "}
           <code className="font-mono">.ttf</code> fonts generated for your
           account.
         </p>

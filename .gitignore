@@ -5,6 +5,9 @@ build/
 .wrangler/
 .vite/
 
+# Local model weights
+local_weights/
+
 # Environment & secrets
 .env
 .env.local

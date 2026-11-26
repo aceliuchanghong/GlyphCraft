@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import type { CurveMode } from "@glyphcraft/shared";
+import { DEFAULT_PREVIEW_TEXT, type CurveMode } from "@glyphcraft/shared";
 
 const STORAGE_KEY = "glyphcraft_studio_draft_v1";
 
@@ -8,15 +8,17 @@ export interface StudioDraftState {
   previewText: string;
   familyName: string;
   curveMode: CurveMode;
+  activePresetSlug: string | null;
   r2DraftId: string | null;
   pendingCheckout: boolean;
 }
 
 const DEFAULT_DRAFT: StudioDraftState = {
   slots: [null, null, null],
-  previewText: "Hello World!",
+  previewText: DEFAULT_PREVIEW_TEXT,
   familyName: "MyCustomFont",
   curveMode: "spline",
+  activePresetSlug: null,
   r2DraftId: null,
   pendingCheckout: false,
 };
@@ -42,6 +44,10 @@ export function readStoredDraft(): StudioDraftState {
           ? parsed.familyName
           : DEFAULT_DRAFT.familyName,
       curveMode: parsed.curveMode === "polygon" ? "polygon" : "spline",
+      activePresetSlug:
+        typeof parsed.activePresetSlug === "string"
+          ? parsed.activePresetSlug
+          : null,
       r2DraftId: typeof parsed.r2DraftId === "string" ? parsed.r2DraftId : null,
       pendingCheckout: Boolean(parsed.pendingCheckout),
     };
@@ -72,6 +78,7 @@ export function useDraftStorage() {
       return {
         ...prev,
         slots: nextSlots,
+        activePresetSlug: null,
         r2DraftId: null,
       };
     });
@@ -80,7 +87,9 @@ export function useDraftStorage() {
   const setAllSlots = useCallback(
     (
       slots: [string | null, string | null, string | null],
-      extra?: Partial<Pick<StudioDraftState, "curveMode" | "familyName">>
+      extra?: Partial<
+        Pick<StudioDraftState, "curveMode" | "familyName" | "activePresetSlug">
+      >
     ) => {
       setDraft((prev) => ({
         ...prev,
