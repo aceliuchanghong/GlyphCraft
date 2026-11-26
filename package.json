@@ -1,0 +1,17 @@
+{
+  "name": "glyphcraft-monorepo",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:web": "npm --workspace @glyphcraft/web run dev",
+    "dev:api": "npm --workspace @glyphcraft/api run dev",
+    "typecheck": "npm --workspace @glyphcraft/shared run typecheck && npm --workspace @glyphcraft/api run typecheck && npm --workspace @glyphcraft/web run typecheck",
+    "build": "npm --workspace @glyphcraft/web run build"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.2"
+  }
+}

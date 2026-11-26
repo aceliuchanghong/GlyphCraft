@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Instrument Serif", Georgia, serif;
+  --font-sans: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+@font-face {
+  font-family: "GC-GrenzeGotisch";
+  src: url("/samples/grenzegotisch__light_w300_hd10.ttf") format("truetype");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "GC-CherrySwash";
+  src: url("/samples/cherryswash__bold_hd10.ttf") format("truetype");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "GC-DotGothic";
+  src: url("/samples/dotgothic16__regular_hd10.ttf") format("truetype");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "GC-Ubuntu";
+  src: url("/samples/ubuntu__regular_hd10.ttf") format("truetype");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "GC-Abyssinica";
+  src: url("/samples/abyssinicasil__regular_hd10.ttf") format("truetype");
+  font-display: swap;
+}
+
+html {
+  scroll-behavior: smooth;
+  font-family: var(--font-sans);
+}
+
+.bg-foundry-grid {
+  background-image:
+    linear-gradient(to right, rgba(10, 10, 11, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(10, 10, 11, 0.04) 1px, transparent 1px);
+  background-size: 32px 32px;
+}

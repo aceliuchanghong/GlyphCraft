@@ -1,0 +1,20 @@
+name = "glyphcraft-api"
+main = "src/index.ts"
+compatibility_date = "2025-03-01"
+
+[vars]
+ENVIRONMENT = "production"
+DEV_BYPASS_TURNSTILE = "false"
+BRAND_NAME = "GlyphCraft"
+FRONTEND_URL = "https://glyphcraft.pages.dev"
+CREEM_API_BASE = "https://api.creem.io"
+FREE_PREVIEW_DAILY_LIMIT = "3"
+FONT_PRICE_CENTS = "900"
+
+[[r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "glyphcraft-assets"
+
+[[kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "replace-with-your-kv-namespace-id"

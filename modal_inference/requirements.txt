@@ -1,0 +1,17 @@
+modal>=1.0.0
+fastapi>=0.115.0
+pydantic>=2.10.0
+boto3>=1.35.0
+httpx>=0.28.0
+pillow>=11.0.0
+numpy>=2.0.0
+pyyaml>=6.0.2
+tqdm>=4.67.1
+vtracer>=0.6.11
+fonttools>=4.59.2
+torch>=2.6.0
+torchvision>=0.21.0
+transformers>=4.56.0
+diffusers>=0.35.1
+accelerate>=1.10.1
+kornia>=0.8.1
